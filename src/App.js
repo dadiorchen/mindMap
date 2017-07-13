@@ -2,20 +2,6 @@ import React, { Component } from 'react';
 import logo from './logo.svg';
 import './App.css';
 
-class Root extends Component {
-	render(){
-		let w = 100;
-		let h = 35;
-		return (
-			<g>
-			<rect x={0-w/2} y={0-h/2} rx='5' ry='5' width={w} height={h} strokeWidth='0' fill='#80D5B1' >
-			</rect>
-			<text x={0-w/2 + 10}  y={0-h/2 + 25} fontSize="28" fill="white" >logger</text>
-			</g>
-		)
-	}
-}
-
 class Element extends Component {
 	constructor(props){
 		super(props);
@@ -42,23 +28,26 @@ class Element extends Component {
 		console.info(`the x:${x},the y:${y} , the d:${d}`);
 		return(
 			<g>
-				<path strokeWidth="9.19" fill="none" d={d} stroke="#e68782" stroke-dasharray="99999"></path>
+				<path strokeWidth="5" fill="none" d={d} stroke="#e68782" stroke-dasharray="99999"></path>
 			</g>
 		)
 	}
+
 	render(){
-		const {x,y} = this.props;
+		const {x,y,isRoot,text} = this.props;
 		let w = 100;
 		let h = 35;
 		return (
 			<g>
-			<rect x={x-w/2} y={y-h/2} rx='5' ry='5' width={w} height={h} strokeWidth='0' fill='#80D5B1' >
-			</rect>
-			<text x={x-w/2 + 10}  y={y-h/2 + 25} fontSize="28" fill="white" >logger</text>
-			{this.props.elements}
-			{x > 50 &&
-				this.drawing()
-			}
+				{isRoot === 'false' &&
+					this.drawing()
+				}
+				<g transform={`translate(${x} ${y})`}>
+					<rect x={-w/2} y={-h/2} rx='5' ry='5' width={w} height={h} strokeWidth='0' fill='#80D5B1' >
+					</rect>
+					<text dy="5" textAnchor="middle" fontSize="20" fill="white" >{text}</text>
+				</g>
+				{this.props.elements}
 			</g>
 		)
 	}
@@ -68,43 +57,21 @@ class Element extends Component {
 class App extends Component {
 	constructor(props){
 		super(props);
+		let kaifaElements = [];
+		kaifaElements.push(<Element x='400' y='-200' isRoot='false' text='v0.1'/>);
+		kaifaElements.push(<Element x='400' y='-100' isRoot='false' text='v0.2'/>);
+		kaifaElements.push(<Element x='400' y='0' isRoot='false' text='v0.3'/>);
+
 		let elements = [];
-		elements.push(<Element x='200' y='100' />);
+		elements.push(<Element x='200' y='100' isRoot='false' text='开发环境'/>);
+		elements.push(<Element x='200' y='0' isRoot='false' text='上线记录'/>);
+		elements.push(<Element x='200' y='-100' isRoot='false' text='开发' elements={kaifaElements} />);
 		this.state = {
 			x:100,
 			y:100,
-			root : <Element x='0' y='0' elements={elements} />
+			root : <Element isRoot='true' x='0' y='0' text='logger' elements={elements} />
 		}
 	}
-
-	drawing = () =>{
-		let offset = 79.5;
-		let {x,y} = this.state;
-		x = parseInt(x);
-		y = parseInt(y);
-		let absX = Math.abs(x);
-		let absY = Math.abs(y);
-		//let cx2 = (1-(absY/absX)*(absY/absX)) * (absX/2);
-		//let cy2 = absY;
-		//let cx1 = (absX*absX + absY*absY)/(2*absX);
-		//let cy1 = 0;
-		let cx1 = absX*0.8;
-		let cy1 = 0;
-		let cx2 = absX - 100;
-		let cy2 = absY;
-		let signX = x > 0 ? 1 : -1;
-		let signY = y > 0 ? 1 : -1;
-		let d = `M ${0+offset} 0 C ${cx1*signX + offset} ${cy1*signY} ${cx2*signX+offset} ${cy2*signY} ${x+offset} ${y}`;
-		console.info(`the x:${x},the y:${y} , the d:${d}`);
-		this.setState({line:
-			<g>
-				<path strokeWidth="9.19" fill="none" d={d} stroke="#e68782" stroke-dasharray="99999"></path>
-				<circle cx={cx1*signX} cy={cy1*signY} r="5" fill="green" />
-				<circle cx={cx2*signX} cy={cy2*signY} r="5" fill="yellow" />
-			</g>
-		})
-	}
-
 
 
   render() {
@@ -130,7 +97,12 @@ class App extends Component {
 	{this.state.line}
 </svg>
 		*/}
-		<svg veron="1.1" xmlns="http://www.w3.org/2000/svg" viewBox="-720 -350 1440 700" width="1440" height="700">
+		<svg version="1.1" xmlns="http://www.w3.org/2000/svg" viewBox="-720 -350 1440 700" width="1440" height="700">
+		{/* the ellipses */}
+			<ellipse cx='0' cy='0' rx='200' ry='100' fill='transparent'  stroke='pink' />
+			<ellipse cx='0' cy='0' rx='400' ry='200' fill='transparent'  stroke='pink' />
+			<ellipse cx='0' cy='0' rx='600' ry='300' fill='transparent'  stroke='pink' />
+			<ellipse cx='0' cy='0' rx='800' ry='400' fill='transparent'  stroke='pink' />
 			{this.state.root}
 		</svg>
       </div>
