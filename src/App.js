@@ -1,31 +1,37 @@
 import React, { Component } from 'react';
 import logo from './logo.svg';
 import './App.css';
+import * as MindMapModel from './model/MindMapModel.js'
+import {connect} from 'react-redux'
 
 class Element extends Component {
 	constructor(props){
 		super(props);
 	}
-	drawing = () =>{
-		let offset = 50;
-		let {x,y} = this.props;
-		x = parseInt(x);
-		y = parseInt(y); 
-		x = x - 100;
-		let absX = Math.abs(x);
-		let absY = Math.abs(y);
+	drawing = (startX,startY,endX,endY,startNodeWidth,endNodeWidth) =>{
+		//calcutate the point (consider the node have width,and the x,y greater or lesser then 0) 
+		if(endX > 0 ){
+			startX = startX + startNodeWidth/2;
+			endX = endX - endNodeWidth / 2;
+		}else{
+			startX = startX - startNodeWidth/2;
+			endX = endX + endNodeWidth / 2;
+		}
+
+		
+		const distX = Math.abs(startX-endX);
+		const absY = Math.abs(startY - endY);
 		//let cx2 = (1-(absY/absX)*(absY/absX)) * (absX/2);
 		//let cy2 = absY;
 		//let cx1 = (absX*absX + absY*absY)/(2*absX);
 		//let cy1 = 0;
-		let cx1 = absX*0.8;
-		let cy1 = 0;
-		let cx2 = absX - 100;
-		let cy2 = absY;
-		let signX = x > 0 ? 1 : -1;
-		let signY = y > 0 ? 1 : -1;
-		let d = `M ${0+offset} 0 C ${cx1*signX + offset} ${cy1*signY} ${cx2*signX+offset} ${cy2*signY} ${x+offset} ${y}`;
-		console.info(`the x:${x},the y:${y} , the d:${d}`);
+		
+		const controlStartX = startX > 0 ? (startX + distX*0.6) : (startX - distX*0.6);
+		const controlStartY = startY;
+		const controlEndX = endX > 0 ? (endX - 100) : (endX + 100);
+		const controlEndY = endY;
+		const d = `M ${startX} ${startY} C ${controlStartX} ${controlStartY} ${controlEndX} ${controlEndY} ${endX} ${endY}`;
+		console.info(`(${startX},${startY}) -> (${endX},${endY}) = d:${d}`);
 		return(
 			<g>
 				<path strokeWidth="5" fill="none" d={d} stroke="#e68782" stroke-dasharray="99999"></path>
@@ -34,47 +40,46 @@ class Element extends Component {
 	}
 
 	render(){
-		const {x,y,isRoot,text} = this.props;
-		let w = 100;
-		let h = 35;
+		const {node,parentNode} = this.props;
+		if(!node) return null;
+		const {x,y,name,children,parent,color} = node;
+		const w = parentNode?80:120;
+		const h = parentNode?30:50;
 		return (
 			<g>
-				{isRoot === 'false' &&
-					this.drawing()
+				{parentNode &&
+					this.drawing(parentNode.x,parentNode.y,x,y,parentNode.id == 0 ? 120:80,80)
 				}
 				<g transform={`translate(${x} ${y})`}>
-					<rect x={-w/2} y={-h/2} rx='5' ry='5' width={w} height={h} strokeWidth='0' fill='#80D5B1' >
+					<rect x={-w/2} y={-h/2} rx='5' ry='5' width={w} height={h} strokeWidth='0' fill={color} >
 					</rect>
-					<text dy="5" textAnchor="middle" fontSize="20" fill="white" >{text}</text>
+					<text dy="5" textAnchor="middle" fontSize={parentNode?"18":"28"} fill="white" >{name}</text>
 				</g>
-				{this.props.elements}
+				{children && children.map(id => <ElementConnected nodeId={id} />) }
 			</g>
 		)
 	}
 }
 
+const ElementConnected = connect(
+		(state,props) => {
+			return {
+				node : MindMapModel.getNodeById(state,props.nodeId),
+				parentNode : MindMapModel.getParentNodeById(state,props.nodeId),
+			}
+		})(Element)
 
 class App extends Component {
 	constructor(props){
 		super(props);
-		let kaifaElements = [];
-		kaifaElements.push(<Element x='400' y='-200' isRoot='false' text='v0.1'/>);
-		kaifaElements.push(<Element x='400' y='-100' isRoot='false' text='v0.2'/>);
-		kaifaElements.push(<Element x='400' y='0' isRoot='false' text='v0.3'/>);
-
-		let elements = [];
-		elements.push(<Element x='200' y='100' isRoot='false' text='开发环境'/>);
-		elements.push(<Element x='200' y='0' isRoot='false' text='上线记录'/>);
-		elements.push(<Element x='200' y='-100' isRoot='false' text='开发' elements={kaifaElements} />);
-		this.state = {
-			x:100,
-			y:100,
-			root : <Element isRoot='true' x='0' y='0' text='logger' elements={elements} />
-		}
 	}
 
+	componentWillMount(){
+		this.props.dispatch(MindMapModel.load());
+	}
 
   render() {
+	  const {root} = this.props;
     return (
       <div> 
 	  {/*
@@ -98,16 +103,24 @@ class App extends Component {
 </svg>
 		*/}
 		<svg version="1.1" xmlns="http://www.w3.org/2000/svg" viewBox="-720 -350 1440 700" width="1440" height="700">
-		{/* the ellipses */}
+		{/* the ellipses 
 			<ellipse cx='0' cy='0' rx='200' ry='100' fill='transparent'  stroke='pink' />
 			<ellipse cx='0' cy='0' rx='400' ry='200' fill='transparent'  stroke='pink' />
 			<ellipse cx='0' cy='0' rx='600' ry='300' fill='transparent'  stroke='pink' />
-			<ellipse cx='0' cy='0' rx='800' ry='400' fill='transparent'  stroke='pink' />
-			{this.state.root}
+			<ellipse cx='0' cy='0' rx='800' ry='400' fill='transparent'  stroke='pink' />*/}
+			{root &&
+				<ElementConnected nodeId={root.id} />
+			}
 		</svg>
       </div>
     );
   }
 }
 
+App = connect(
+		(state,props) => {
+			return {
+				root : MindMapModel.getRoot(state),
+			}
+		})(App)
 export default App;
