@@ -101,6 +101,16 @@ nodeList.forEach(node =>{
 	indexData[node.id] = node;
 });
 
+function getNextId(indexData){
+	let maxId = 0;
+	for(let key in indexData){
+		if(indexData[key].id > maxId){
+			maxId = indexData[key].id;
+		}
+	}
+	return maxId + 1;
+}
+
 //calculate the node position
 layout(0,indexData);
 
@@ -110,11 +120,23 @@ layout(0,indexData);
 const PREFIX = "HashTagModel_";
 const ACTION = {
 	LOAD : PREFIX + "load",
+	ADD_NODE : PREFIX + "add_node",
+	DELETE_NODE : PREFIX + "delele_node",
 }
 
 export const load = () => ({
 	type:ACTION.LOAD,
 })
+
+export const addNode = (parentId) => ({
+	type : ACTION.ADD_NODE,
+	parentId,
+});
+
+export const deleteNode = (id) => ({
+	type : ACTION.DELETE_NODE,
+	id,
+});
 
 //reducer--------------------------------------
 
@@ -122,11 +144,49 @@ const index = (state = {},action) => {
 	switch(action.type){
 		case ACTION.LOAD:
 			return indexData;
+		case ACTION.ADD_NODE:{
+			let indexData = state;
+			const parentId = action.parentId;
+			const parentNode = indexData[parentId];
+			if(!parentNode.children){
+				parentNode.children = [];
+			}
+			const node = {
+				id : getNextId(state),
+				name : '新节点',
+				parent : parentId,
+				color : '#469AD0',
+			}
+			parentNode.children.push(node.id);
+			indexData[node.id] = node;
+			layout(0,indexData);
+			return indexData;
+		}
+		case ACTION.DELETE_NODE:{
+			let indexData = [...state];
+			const node = indexData[action.id];
+			const parentNode = indexData[node.parent];
+			delete parentNode.children[parentNode.chidren.indexOf(action.id)];
+			delete indexData[action.id];
+			return indexData;
+		}
 		default:
 			return state;
 	}
 }
 
+const reLayout = (state = (new Date()).getTime() , action ) => {
+	switch(action.type){
+		case ACTION.ADD_NODE:{
+			return (new Date()).getTime();
+		}
+		case ACTION.DELETE_NODE:{
+			return (new Date()).getTime();
+		}
+		default:
+			return state;
+	}
+}
 //get setter -----------------------------------------
 
 export const getNodeById = (state,id) => {
@@ -150,4 +210,5 @@ export const getRoot = (state) => {
 //export 
 export const mindMap = combineReducers({
 	index,
+	reLayout,
 })
