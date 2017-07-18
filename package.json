@@ -6,9 +6,12 @@
     "react-scripts": "1.0.10"
   },
   "dependencies": {
+    "d3": "^4.10.0",
+    "d3-drag": "^1.1.1",
     "polar-to-cartesian": "0.0.0",
     "react": "^15.6.1",
     "react-dom": "^15.6.1",
+    "react-mt-svg-lines": "^0.7.3",
     "react-redux": "^5.0.5",
     "redux": "^3.7.2",
     "redux-logger": "^3.0.6",

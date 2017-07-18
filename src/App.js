@@ -4,13 +4,16 @@ import './App.css';
 import * as MindMapModel from './model/MindMapModel.js'
 import {connect} from 'react-redux'
 import {polar2cartesian} from './model/coordination.js'
+import * as d3 from 'd3';
+import {event as currentEvent} from 'd3';
 
+
+console.log('loaded d3 :',d3);
 
 class Element extends Component {
 	constructor(props){
 		super(props);
 		this.state = {
-			showChildren : false,
 			showContextMenu : false,
 		}
 	}
@@ -21,6 +24,19 @@ class Element extends Component {
 
 	componentWillUpdate(){
 		console.info('will update');
+	}
+
+	componentDidMount(){
+		if(this.lineRef){
+			setTimeout(() => {
+				this.lineRef.style.strokeDashoffset = 0;
+			},10);
+		}
+		if(this.nodeRef){
+			setTimeout(() => {
+				this.nodeRef.style.opacity = '1';
+			},10);
+		}
 	}
 
 	drawing = (startX,startY,endX,endY,startNodeWidth,endNodeWidth) =>{
@@ -49,7 +65,13 @@ class Element extends Component {
 		console.info(`(${startX},${startY}) -> (${endX},${endY}) = d:${d}`);
 		return(
 			<g>
-				<path strokeWidth="5" fill="none" d={d} stroke="#e68782" />
+				<path ref={r => this.lineRef = r} strokeWidth="8" fill="none" d={d} stroke="#e68782"  
+					style={{
+						'strokeDasharray' : 500,
+						'strokeDashoffset' : 500,
+						'transition': 'all 1s linear',
+					}}
+				/>
 			</g>
 		)
 	}
@@ -83,12 +105,19 @@ class Element extends Component {
 		});
 	}
 
+	toggleChildren = () =>{
+		this.props.dispatch(MindMapModel.toggleChildren(this.props.node.id));
+	}
+
 	render(){
-		const {node,parentNode,reLayout} = this.props;
+		const {node,showLevel,parentNode,reLayout} = this.props;
+		if(node == undefined || node == null){
+			return null;
+		}
 		console.info(`the reLayout time:${reLayout}`);
-		const {showChildren,showContextMenu,contextMenuX,contextMenuY} = this.state;
+		const {showContextMenu,contextMenuX,contextMenuY} = this.state;
 		if(!node) return null;
-		const {x,y,name,children,parent,color} = node;
+		const {x,y,name,children,parent,color,image} = node;
 		const w = parentNode?80:120;
 		const h = parentNode?30:50;
 		return (
@@ -97,13 +126,27 @@ class Element extends Component {
 					this.drawing(parentNode.x,parentNode.y,x,y,parentNode.id == 0 ? 120:80,80)
 				}
 				<g transform={`translate(${x} ${y})`} 
+					ref={r => this.nodeRef = r}
 					onContextMenu={this.handleContextMenu}
-					onClick={e => this.setState({showChildren : !showChildren})}>
-					<rect x={-w/2} y={-h/2} rx='5' ry='5' width={w} height={h} strokeWidth='0' fill={color} 
-						 />
-					<text dy="5" textAnchor="middle" fontSize={parentNode?"18":"28"} fill="white" >{name}</text>
+					onClick={this.toggleChildren}
+					style={{
+						'opacity' : '0',
+						'transition' : 'all 1s linear',
+					}}
+				>
+					{image ? 
+						<image 
+							xlinkHref={image} x="-15" y="-20" height="41px" width="30px"/>
+					:
+						<g
+						>
+							<rect x={-w/2} y={-h/2} rx='5' ry='5' width={w} height={h} strokeWidth='0' fill={color} 
+								 />
+							<text dy="5" textAnchor="middle" fontSize={parentNode?"18":"28"} fill="white" >{name}</text>
+						</g>
+					}
 				</g>
-				{showChildren && children && children.map(id => <ElementConnected key={id} nodeId={id} />) }
+				{(node.showChildren ||  showLevel > node.level) && children && children.map(id => <ElementConnected key={id} nodeId={id} />) }
 				{showContextMenu && 
 					<ContextMenu 
 						contextMenuX={contextMenuX} 
@@ -124,6 +167,7 @@ const ElementConnected = connect(
 				reLayout : state.mindMap.reLayout,
 				node : MindMapModel.getNodeById(state,props.nodeId),
 				parentNode : MindMapModel.getParentNodeById(state,props.nodeId),
+				showLevel : state.mindMap.showLevel,
 			}
 		})(Element)
 
@@ -187,16 +231,90 @@ class ContextMenuItem extends Component {
 
 
 class App extends Component {
+	//const------------------------------------
+	width = 1440;
+	height = 700;
+	viewBoxMinX = -720;
+	viewBoxMinY = -350;
+	
 	constructor(props){
 		super(props);
+		this.state = {
+			width : this.width,
+			height : this.height,
+			viewBoxMinX : this.viewBoxMinX,
+			viewBoxMinY : this.viewBoxMinY,
+			viewBoxWidth : this.width,
+			viewBoxHeight : this.height,
+		}
 	}
 
 	componentWillMount(){
 		this.props.dispatch(MindMapModel.load());
 	}
 
+	componentDidMount(){
+		setTimeout(() => {this.pathRef.style.strokeDashoffset = 0},10);
+		//mount drag event
+		console.info('selected:',d3.select(this.backgroundRectRef));
+		d3.select(this.backgroundRectRef).call(
+			d3.drag()
+				.on('start',() => console.info('start drag'))
+				.on('drag',(e) => {
+					console.info('event:',currentEvent);
+					this.move(currentEvent.dx,currentEvent.dy);
+				})
+				.on('end',() => console.info('end drag'))
+			);
+	}
+
+	zoomRatio = 0.08;
+
+	move = (dx,dy) => {
+		let factor = 1;
+		let {viewBoxMinX,viewBoxMinY,viewBoxWidth,viewBoxHeight} = this.state;
+		viewBoxMinX -= dx*factor;
+		viewBoxMinY -= dy*factor;
+		this.setState({viewBoxWidth,viewBoxHeight,viewBoxMinX,viewBoxMinY});
+	}
+	moveToHome = () => {
+		this.setState({
+			viewBoxWidth : this.width,
+			viewBoxHeight : this.height,
+			viewBoxMinX : this.viewBoxMinX,
+			viewBoxMinY : this.viewBoxMinY,
+		});
+	}
+
+	zoomOut = () => {
+		let {viewBoxMinX,viewBoxMinY,viewBoxWidth,viewBoxHeight} = this.state;
+		viewBoxWidth = viewBoxWidth * (1 + this.zoomRatio);
+		viewBoxHeight = viewBoxHeight * (1 + this.zoomRatio);
+		viewBoxMinX = Math.round((viewBoxWidth / 2)) * (-1);
+		viewBoxMinY = Math.round((viewBoxHeight / 2)) * (-1);
+		this.setState({viewBoxWidth,viewBoxHeight,viewBoxMinX,viewBoxMinY});
+	}
+
+	zoomIn = () => {
+		let {viewBoxMinX,viewBoxMinY,viewBoxWidth,viewBoxHeight} = this.state;
+		viewBoxWidth = viewBoxWidth * (1 - this.zoomRatio);
+		viewBoxHeight = viewBoxHeight * (1 - this.zoomRatio);
+		viewBoxMinX = Math.round((viewBoxWidth / 2)) * (-1);
+		viewBoxMinY = Math.round((viewBoxHeight / 2)) * (-1);
+		this.setState({viewBoxWidth,viewBoxHeight,viewBoxMinX,viewBoxMinY});
+	}
+
+	expand = () => {
+		this.props.dispatch(MindMapModel.expand());
+	}
+	fold = () => {
+		this.props.dispatch(MindMapModel.fold());
+	}
+
+
   render() {
 	  const {root} = this.props;
+	  const {viewBoxMinX,viewBoxMinY,viewBoxWidth,viewBoxHeight,width,height} = this.state;
     return (
       <div> 
 	  {/*
@@ -219,16 +337,66 @@ class App extends Component {
 	{this.state.line}
 </svg>
 		*/}
-		<svg version="1.1" xmlns="http://www.w3.org/2000/svg" viewBox="-720 -350 1440 700" width="1440" height="700">
-		{/* the ellipses 
+		<svg viewBox="0 0 127.9 178.4" style={{'display':'none'}} >
+		  <path d="M 0 0 C 0 0 100 100 100 100 " stroke='black' 
+		 	style={{
+				'strokeDasharray' : 100,
+				'strokeDashoffset' : 100,
+				'transition': 'stroke-dashoffset 3s linear',
+			}}
+			ref={r => this.pathRef = r}
+			/>
+		</svg>
+		<svg 
+			version="1.1" 
+			xmlns="http://www.w3.org/2000/svg" 
+			viewBox={`${viewBoxMinX} ${viewBoxMinY} ${viewBoxWidth} ${viewBoxHeight}`} 
+			width={width} 
+			height={height} 
+			style={{
+				'transition' : 'all 1s linear',
+			}}
+		>
 			<ellipse cx='0' cy='0' rx='200' ry='100' fill='transparent'  stroke='pink' />
 			<ellipse cx='0' cy='0' rx='400' ry='200' fill='transparent'  stroke='pink' />
 			<ellipse cx='0' cy='0' rx='600' ry='300' fill='transparent'  stroke='pink' />
-			<ellipse cx='0' cy='0' rx='800' ry='400' fill='transparent'  stroke='pink' />*/}
+			<ellipse cx='0' cy='0' rx='800' ry='400' fill='transparent'  stroke='pink' />
+			<rect 
+				style={{
+					'cursor' : 'pointer',
+				}}
+				ref={r => this.backgroundRectRef = r} 
+				x={viewBoxMinX} 
+				y={viewBoxMinY} 
+				width={width} 
+				height={height} 
+				fill='transparent' />
 			{root &&
 				<ElementConnected key={root.id} nodeId={root.id} />
 			}
 		</svg>
+			<div style={{'position':'absolute','top':50,'left':50}} >
+				<div
+					style={{'cursor':'pointer'}}
+					onClick={this.zoomIn}
+				>+</div>
+				<div
+					style={{'cursor':'pointer'}}
+					onClick={this.zoomOut}
+				>-</div>
+				<div
+					style={{'cursor':'pointer'}}
+					onClick={this.fold}
+				>&lt;</div>
+				<div
+					style={{'cursor':'pointer'}}
+					onClick={this.expand}
+				>&gt;</div>
+				<div
+					style={{'cursor':'pointer'}}
+					onClick={this.moveToHome}
+				>Home</div>
+			</div>
       </div>
     );
   }
