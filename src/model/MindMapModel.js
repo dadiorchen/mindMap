@@ -1,9 +1,9 @@
 import {combineReducers} from 'redux'
-import layout from './layout.js'
-//import layout from './layoutEllipse.js'
+//import layout from './layout.js'
+import layout from './layoutEllipseBounce.js'
 
 //data for test
-const nodeList = [
+const nodeList2 = [
 {
 	id:0,
 	name:'logger',
@@ -114,6 +114,17 @@ const nodeList = [
 	showChildren : false,
 },
 ]
+
+
+const nodeList = [
+{
+	id:0,
+	name:'logger',
+	children : [],
+	color : '#94D2B3',
+	showChildren : false,
+}]
+
 let indexData = {};
 nodeList.forEach(node =>{
 	indexData[node.id] = node;
@@ -132,7 +143,7 @@ function getNextId(indexData){
 //calculate the node position
 layout(0,indexData);
 
-//calculate level: give the id,calculate its level number
+//calculate level: give the id,calculate its level number , the root node is level 1
 function getLevel(id,indexData){
 	let node = indexData[id];
 	let level = 1;

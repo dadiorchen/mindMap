@@ -6,6 +6,7 @@ import {connect} from 'react-redux'
 import {polar2cartesian} from './model/coordination.js'
 import * as d3 from 'd3';
 import {event as currentEvent} from 'd3';
+import {getRootRatio,CHILD_GAP} from './model/layoutEllipseBounce.js';
 
 
 console.log('loaded d3 :',d3);
@@ -108,7 +109,7 @@ class Element extends Component {
 	toggleChildren = () =>{
 		this.props.dispatch(MindMapModel.toggleChildren(this.props.node.id));
 	}
-
+	
 	render(){
 		const {node,showLevel,parentNode,reLayout} = this.props;
 		if(node == undefined || node == null){
@@ -117,11 +118,38 @@ class Element extends Component {
 		console.info(`the reLayout time:${reLayout}`);
 		const {showContextMenu,contextMenuX,contextMenuY} = this.state;
 		if(!node) return null;
-		const {x,y,name,children,parent,color,image} = node;
+		const {x,y,name,children,parent,color,image,level} = node;
 		const w = parentNode?80:120;
 		const h = parentNode?30:50;
+
+		const backgroundEllipses = [];
+		const middleLine = {};
+		if(level === 1){
+			//is root , draw background ellipse
+			//calculate background ellipse
+			for(let i = 1 ; i < 10 ; i++){
+			  const ratio = getRootRatio();
+			  const orbit = i;
+			  const a = CHILD_GAP * i;	
+			  const b = a*ratio;
+			  backgroundEllipses.push({rx:a,ry:b});
+			}
+		}else if(level == 2){
+			//is children of root , then ,draw the middle line (middle lien to layout the children)
+			middleLine.startX = x;
+			middleLine.startY = y;
+			middleLine.endX = x*10000;
+			middleLine.endY = y*10000;
+		}
 		return (
 			<g>
+				{level === 1 &&
+					backgroundEllipses.map(e => 
+						<ellipse cx='0' cy='0' rx={e.rx} ry={e.ry} fill='transparent'  stroke='pink' />
+				)}
+				{level === 2 &&
+					<line x1={middleLine.startX} y1={middleLine.startY} x2={middleLine.endX} y2={middleLine.endY} stroke='pink' />
+				}
 				{parentNode &&
 					this.drawing(parentNode.x,parentNode.y,x,y,parentNode.id == 0 ? 120:80,80)
 				}
@@ -357,10 +385,6 @@ class App extends Component {
 				'transition' : 'all 1s linear',
 			}}
 		>
-			<ellipse cx='0' cy='0' rx='200' ry='100' fill='transparent'  stroke='pink' />
-			<ellipse cx='0' cy='0' rx='400' ry='200' fill='transparent'  stroke='pink' />
-			<ellipse cx='0' cy='0' rx='600' ry='300' fill='transparent'  stroke='pink' />
-			<ellipse cx='0' cy='0' rx='800' ry='400' fill='transparent'  stroke='pink' />
 			<rect 
 				style={{
 					'cursor' : 'pointer',

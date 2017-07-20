@@ -1,7 +1,13 @@
 import {polar2cartesian} from './coordination.js'
 //const---------------------------------------------------
 const NODE_GAP = 50;// unit:degree
-const CHILD_GAP = 200;// unit : px
+export const CHILD_GAP = 200;// unit : px
+const MAX_DEGREE = 45;//unit : degree , the max degree to ajust the ellipse shape.
+//const MAX_HEIGHT = Math.sin(Math.PI * MAX_DEGREE / 180) * CHILD_GAP;
+//const MAX_X = Math.cos(Math.PI * MAX_DEGREE / 180 ) * CHILD_GAP;
+const MIN_X = 160;//the root child cannot less than this distance;
+const ORIGINAL_RATIO = 0.6;//the original ratio of ellipse ratio = b/a;
+
 
 
 
@@ -60,20 +66,38 @@ function layout(rootId,nodeIndex){
 /*
  * get the x coordination , by y and orbit , orbit is number , indicate the level of orbit , start from 1(means the root's children orbit)
  * */
-function getXByY(y,orbit){
-	const a = 200+ (orbit - 1)*200;
-	const b = a*2;
+function getXByY(y,orbit,ratio){
+	const a = CHILD_GAP + (orbit - 1)*CHILD_GAP;
+	const b = a*ratio;
 	return Math.sqrt( ( 1 - (y*y)/(b*b))*(a*a));
 }
 
+
+function calculateRatio(hiestNodeHeight){
+	//according y , cal x, if x < MIN_X then , adjest the ratio
+	const x = getXByY(hiestNodeHeight,1,rootRatio);
+	if(x > MIN_X ){
+		//return rootRatio;
+		//do nothing 
+	}else{
+		rootRatio =  hiestNodeHeight / Math.sqrt(CHILD_GAP*CHILD_GAP - MIN_X*MIN_X);
+	}
+}
+
+//the leve 1 ratio,it deside the whole mindMap shape (the ratio of the ellipse)
+var rootRatio = ORIGINAL_RATIO;
+function getRootRatio(){
+	return rootRatio;
+}
 function layoutNode(nodes,sectorNumber,nodeIndex){
 	let wholeGap = (nodes.length - 1)*NODE_GAP;
 	let highestNodeHeight = Math.round(wholeGap/2);
+	calculateRatio(highestNodeHeight);
 	for(let i = 0 ; i < nodes.length ; i++){
 		//calculate ever node
 		const node = nodeIndex[nodes[i]];
 		const y = highestNodeHeight - i*NODE_GAP;
-		const x = getXByY(y,1);
+		const x = getXByY(y,1,rootRatio);
 		//let {x,y} =  polar2cartesian(CHILD_GAP,degree);
 		//convert to x,y, consider sector number
 		switch(sectorNumber){
@@ -100,33 +124,41 @@ function layoutNode(nodes,sectorNumber,nodeIndex){
 
 function layoutChildren(nodes,sectorNumber,nodeIndex){
 	const parentNode = nodeIndex[nodeIndex[nodes[0]].parent];
-	const node_gap = 8;// 8 degree for orbit 2
-	const wholeGap = (nodes.length - 1)*node_gap;
-	const highestNodeDegree = Math.round(wholeGap / 2) + parentNode.degree;
+	const orbit = parentNode.level; 
+	//calculate the middle point of child nodes. its in a strait line with parent point and root point (3 point in a line )
+	const a = CHILD_GAP + (orbit - 1)*CHILD_GAP;
+	const middlePointY = a / Math.sqrt( rootRatio * rootRatio + ((parentNode.x*parentNode.x)/(parentNode.y*parentNode.y))) ;
+	const middlePointX = getXByY(middlePointY,2,rootRatio);//TODO temp 2 level
+	//calculate the every node gap 
+	const wholeGap = (nodes.length - 1)*NODE_GAP;
+	const highestNodeHeight = Math.round(wholeGap / 2) + middlePointY;
 	for(let i = 0 ; i < nodes.length ; i++){
 		const node = nodeIndex[nodes[i]];
-		const degree = highestNodeDegree - i * node_gap;
-		let {x,y} = polar2cartesian(CHILD_GAP * 2,degree);
+		const y = highestNodeHeight - i*NODE_GAP;
+		const x = getXByY(y,orbit,rootRatio);
 		//convert to x,y, consider sector number
 		switch(sectorNumber){
 			case 1:{
 				node.x = x;
 				node.y = -y;
 				node.sector = 1;
-				node.degree = degree;
 				break;
 			};
 			case 2:{
 				node.x = -x;
 				node.y = y;
 				node.sector = 2;
-				node.degree = degree;
 				break;
 			};
 		}
-		console.info(`the node ${i} in sector${sectorNumber},degree:${degree},x:${x},y:${y},converted x:${node.x},y:${node.y}`);
+		console.info(`the node ${node.id}(child ${i} of parent) in sector${sectorNumber},x:${x},y:${y},converted x:${node.x},y:${node.y}`);
+		//calculate children
+		if(node.children && node.children.length > 0){
+			layoutChildren(node.children,sectorNumber,nodeIndex);
+		}
 	}
 }
 
 
 export default layout;
+export {getRootRatio};

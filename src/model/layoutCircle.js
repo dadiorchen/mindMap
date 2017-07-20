@@ -1,6 +1,6 @@
 import {polar2cartesian} from './coordination.js'
 //const---------------------------------------------------
-const NODE_GAP = 50;// unit:degree
+const NODE_GAP = 15;// unit:degree
 const CHILD_GAP = 200;// unit : px
 
 
@@ -57,40 +57,32 @@ function layout(rootId,nodeIndex){
 	layoutNode(sector2,2,nodeIndex);
 }
 
-/*
- * get the x coordination , by y and orbit , orbit is number , indicate the level of orbit , start from 1(means the root's children orbit)
- * */
-function getXByY(y,orbit){
-	const a = 200+ (orbit - 1)*200;
-	const b = a*2;
-	return Math.sqrt( ( 1 - (y*y)/(b*b))*(a*a));
-}
-
 function layoutNode(nodes,sectorNumber,nodeIndex){
 	let wholeGap = (nodes.length - 1)*NODE_GAP;
-	let highestNodeHeight = Math.round(wholeGap/2);
+	let highestNodeDegree = Math.round(wholeGap/2);
 	for(let i = 0 ; i < nodes.length ; i++){
 		//calculate ever node
 		const node = nodeIndex[nodes[i]];
-		const y = highestNodeHeight - i*NODE_GAP;
-		const x = getXByY(y,1);
-		//let {x,y} =  polar2cartesian(CHILD_GAP,degree);
+		const degree = highestNodeDegree - i*NODE_GAP;
+		let {x,y} =  polar2cartesian(CHILD_GAP,degree);
 		//convert to x,y, consider sector number
 		switch(sectorNumber){
 			case 1:{
 				node.x = x;
 				node.y = -y;
 				node.sector = 1;
+				node.degree = degree;
 				break;
 			};
 			case 2:{
 				node.x = -x;
 				node.y = y;
 				node.sector = 2;
+				node.degree = degree;
 				break;
 			};
 		}
-		console.info(`the node ${i} in sector${sectorNumber},x:${x},y:${y},converted x:${node.x},y:${node.y}`);
+		console.info(`the node ${i} in sector${sectorNumber},degree:${degree},x:${x},y:${y},converted x:${node.x},y:${node.y}`);
 		//calculate children
 		if(node.children && node.children.length > 0){
 			layoutChildren(node.children,sectorNumber,nodeIndex);

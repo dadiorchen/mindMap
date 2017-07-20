@@ -46,8 +46,12 @@ function layout(rootId,nodeIndex){
 	const leftChildren = root.children.slice(0,leftChildrenLength);
 	const rightChildren = root.children.slice(leftChildrenLength);
 	console.info(`left nodes count ${leftChildren.length} , right nodes count ${rightChildren.length}`);
-	calculateLeft(leftChildren,nodeIndex);
-	calculateRight(rightChildren,nodeIndex);
+	if(leftChildren.lenth > 0){
+		calculateLeft(leftChildren,nodeIndex);
+	}
+	if(rightChildren.lenth > 0){
+		calculateRight(rightChildren,nodeIndex);
+	}
 }
 
 
