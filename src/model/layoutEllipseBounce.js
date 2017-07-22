@@ -1,4 +1,5 @@
 import {polar2cartesian} from './coordination.js'
+import {getNextId} from './MindMapModel.js'
 //const---------------------------------------------------
 const NODE_GAP = 50;// unit:degree
 export const CHILD_GAP = 200;// unit : px
@@ -59,8 +60,20 @@ function layout(rootId,nodeIndex){
 	//}
 
 	console.info('sector1:',sector1,'sector2',sector2);
-	layoutNode(sector1,1,nodeIndex);
-	layoutNode(sector2,2,nodeIndex);
+	//check the children occupy space 
+	
+	while(true){
+		layoutNode(sector1,1,nodeIndex);
+		if(checkSpaceOccupy(sector1,nodeIndex)){
+			break;
+		}
+	}
+	while(true){
+		layoutNode(sector2,2,nodeIndex);
+		if(checkSpaceOccupy(sector2,nodeIndex)){
+			break;
+		}
+	}
 }
 
 /*
@@ -181,11 +194,26 @@ function layoutChildren(nodes,nodeIndex){
 	//calculate the every node gap 
 	const wholeGap = (nodes.length - 1)*NODE_GAP;
 	const highestNodeHeight = middlePointY - Math.round(wholeGap / 2);
+	parentNode.childrenSpace = undefined;
 	for(let i = 0 ; i < nodes.length ; i++){
 		const node = nodeIndex[nodes[i]];
 		node.y = highestNodeHeight + i*NODE_GAP;
 		node.x = (parentNode.x >= 0 ? 1 : -1) * getXByY(node.y,orbit,rootRatio);
 		console.info(`the node ${node.id}(child ${i} of parent) ,x:${node.x},y:${node.y},and the highestNodeHeight:${highestNodeHeight},the middle point (x,y):(${middlePointX},${middlePointY})`);
+		//update the children y occupy space (the node's children highest and lowest range
+		if(parentNode.childrenSpace	== undefined ){
+			parentNode.childrenSpace = {
+				highest : node.y,
+				lowest : node.y,
+			}
+		}else{
+			if(parentNode.childrenSpace.highest > node.y){
+				parentNode.childrenSpace.highest = node.y;
+			}
+			if(parentNode.childrenSpace.lowest < node.y){
+				parentNode.childrenSpace.lowest = node.y;
+			}
+		}
 		//calculate children
 		if(node.children && node.children.length > 0){
 			layoutChildren(node.children,nodeIndex);
@@ -193,6 +221,40 @@ function layoutChildren(nodes,nodeIndex){
 	}
 }
 
+
+function checkSpaceOccupy(nodes,nodeIndex){
+	for(let i = 0 ;i < nodes.length ; i++){
+		const node1 = nodeIndex[nodes[i]];
+		if(i+1 <= nodes.length){
+			for (let j = i+1; j < nodes.length ; j++){
+				const node2 = nodeIndex[nodes[j]];
+				if(node1.childrenSpace && node2.childrenSpace && node1.childrenSpace.lowest + 30 > node2.childrenSpace.highest ){//TODO 50
+					console.info(`the node:${node1.id} overlap with node:${node2.id}`,node1,node2);
+					const parentNode = nodeIndex[node1.parent];
+					const newNode = 
+						{
+							id: getNextId(nodeIndex),
+							name:'虚拟节点',
+							color : '#94D2B3',
+							showChildren : false,
+							parent : parentNode.id,
+							level : parentNode.level + 1,
+						};
+					parentNode.children = [...nodes.slice(0,i+1),newNode.id,...nodes.slice(i+1)];
+					nodeIndex[newNode.id] = newNode;
+					return false;
+				}
+			}
+		}
+		//recurser
+		if(node1.children){
+			if(!checkSpaceOccupy(node1.children,nodeIndex)){
+				return false;
+			}
+		}
+	}
+	return true;
+}
 
 export default layout;
 export {getRootRatio,getB};

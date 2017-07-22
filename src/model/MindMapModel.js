@@ -130,7 +130,7 @@ nodeList.forEach(node =>{
 	indexData[node.id] = node;
 });
 
-function getNextId(indexData){
+export function getNextId(indexData){
 	let maxId = 0;
 	for(let key in indexData){
 		if(indexData[key].id > maxId){

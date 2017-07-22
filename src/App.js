@@ -119,6 +119,9 @@ class Element extends Component {
 		const {showContextMenu,contextMenuX,contextMenuY} = this.state;
 		if(!node) return null;
 		const {x,y,name,children,parent,color,image,level} = node;
+		if(name == '虚拟节点'){//TODO
+			return null;
+		}
 		const w = parentNode?80:120;
 		const h = parentNode?30:50;
 
