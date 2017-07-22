@@ -6,7 +6,7 @@ import {connect} from 'react-redux'
 import {polar2cartesian} from './model/coordination.js'
 import * as d3 from 'd3';
 import {event as currentEvent} from 'd3';
-import {getRootRatio,CHILD_GAP} from './model/layoutEllipseBounce.js';
+import {getRootRatio,CHILD_GAP,getB} from './model/layoutEllipseBounce.js';
 
 
 console.log('loaded d3 :',d3);
@@ -124,6 +124,7 @@ class Element extends Component {
 
 		const backgroundEllipses = [];
 		const middleLine = {};
+		let B = 0;
 		if(level === 1){
 			//is root , draw background ellipse
 			//calculate background ellipse
@@ -138,8 +139,15 @@ class Element extends Component {
 			//is children of root , then ,draw the middle line (middle lien to layout the children)
 			middleLine.startX = x;
 			middleLine.startY = y;
-			middleLine.endX = x*10000;
-			middleLine.endY = y*10000;
+			B = getB(x > 0 ? -1 : 1);
+			if(B == 0){
+				middleLine.endX = x*10000;
+				middleLine.endY = y*10000;
+			}else{
+				middleLine.endX  = x*10000;
+				// y2 = y1*(x2-B)/(x1-B)  B=originalPoint.x
+				middleLine.endY = y*(x*10000-B)/(x-B);
+			}
 		}
 		return (
 			<g>
@@ -148,7 +156,10 @@ class Element extends Component {
 						<ellipse cx='0' cy='0' rx={e.rx} ry={e.ry} fill='transparent'  stroke='pink' />
 				)}
 				{level === 2 &&
+					<g>
 					<line x1={middleLine.startX} y1={middleLine.startY} x2={middleLine.endX} y2={middleLine.endY} stroke='pink' />
+					<circle cx={B} cy='0' r='5' fill='pink' />
+					</g>
 				}
 				{parentNode &&
 					this.drawing(parentNode.x,parentNode.y,x,y,parentNode.id == 0 ? 120:80,80)
