@@ -11,6 +11,8 @@ import {getRootRatio,CHILD_GAP,getB} from './model/layoutEllipseBounce.js';
 
 console.log('loaded d3 :',d3);
 
+var referenceLine = false;
+
 class Element extends Component {
 	constructor(props){
 		super(props);
@@ -58,7 +60,7 @@ class Element extends Component {
 		//let cx1 = (absX*absX + absY*absY)/(2*absX);
 		//let cy1 = 0;
 		
-		const controlStartX = startX > 0 ? (startX + distX*0.6) : (startX - distX*0.6);
+		const controlStartX = startX > 0 ? (startX + distX*0.2) : (startX - distX*0.2);
 		const controlStartY = startY;
 		const controlEndX = endX > 0 ? (endX - 100) : (endX + 100);
 		const controlEndY = endY;
@@ -66,11 +68,11 @@ class Element extends Component {
 		console.info(`(${startX},${startY}) -> (${endX},${endY}) = d:${d}`);
 		return(
 			<g>
-				<path ref={r => this.lineRef = r} strokeWidth="8" fill="none" d={d} stroke="#e68782"  
+				<path ref={r => this.lineRef = r} strokeWidth="2" fill="none" d={d} stroke="#e68782"  
 					style={{
 						'strokeDasharray' : 500,
 						'strokeDashoffset' : 500,
-						'transition': 'all 1s linear',
+						'transition': 'all 0.5s linear',
 					}}
 				/>
 			</g>
@@ -119,7 +121,7 @@ class Element extends Component {
 		const {showContextMenu,contextMenuX,contextMenuY} = this.state;
 		if(!node) return null;
 		const {x,y,name,children,parent,color,image,level} = node;
-		if(name == '虚拟节点'){//TODO
+		if(name == '虚拟节点' && !referenceLine){//TODO
 			return null;
 		}
 		const w = parentNode?80:120;
@@ -128,7 +130,7 @@ class Element extends Component {
 		const backgroundEllipses = [];
 		const middleLine = {};
 		let B = 0;
-		if(level === 1){
+		if(level === 1 && referenceLine){
 			//is root , draw background ellipse
 			//calculate background ellipse
 			for(let i = 1 ; i < 10 ; i++){
@@ -138,7 +140,7 @@ class Element extends Component {
 			  const b = a*ratio;
 			  backgroundEllipses.push({rx:a,ry:b});
 			}
-		}else if(level == 2){
+		}else if(level == 2 && referenceLine){
 			//is children of root , then ,draw the middle line (middle lien to layout the children)
 			middleLine.startX = x;
 			middleLine.startY = y;
@@ -173,7 +175,7 @@ class Element extends Component {
 					onClick={this.toggleChildren}
 					style={{
 						'opacity' : '0',
-						'transition' : 'all 1s linear',
+						'transition' : 'all 0.5s linear',
 					}}
 				>
 					{image ? 
@@ -296,7 +298,7 @@ class App extends Component {
 	}
 
 	componentDidMount(){
-		setTimeout(() => {this.pathRef.style.strokeDashoffset = 0},10);
+		//setTimeout(() => {this.pathRef.style.strokeDashoffset = 0},10);
 		//mount drag event
 		console.info('selected:',d3.select(this.backgroundRectRef));
 		d3.select(this.backgroundRectRef).call(
@@ -379,16 +381,6 @@ class App extends Component {
 	{this.state.line}
 </svg>
 		*/}
-		<svg viewBox="0 0 127.9 178.4" style={{'display':'none'}} >
-		  <path d="M 0 0 C 0 0 100 100 100 100 " stroke='black' 
-		 	style={{
-				'strokeDasharray' : 100,
-				'strokeDashoffset' : 100,
-				'transition': 'stroke-dashoffset 3s linear',
-			}}
-			ref={r => this.pathRef = r}
-			/>
-		</svg>
 		<svg 
 			version="1.1" 
 			xmlns="http://www.w3.org/2000/svg" 

@@ -9,15 +9,37 @@ const MAX_DEGREE = 45;//unit : degree , the max degree to ajust the ellipse shap
 const MIN_X = 160;//the root child cannot less than this distance;
 const ORIGINAL_RATIO = 0.6;//the original ratio of ellipse ratio = b/a;
 
+const ERROR = {
+	RATIO_IS_TOO_SMALL : ' ratio is too small',
+	LAYOUT_FAILURE : 'layout failure!',
+}
 
+function getOrbitMinX(orbit){
+	return orbit * CHILD_GAP * 0.6;
+}
 
 
 
 //layout the whole tree , start from root 
+var sector1;
+var sector2;
 function layout(rootId,nodeIndex){
 	const root = nodeIndex[rootId];
 	root.x = 0;
 	root.y = 0;
+
+
+	//every time to layout , reset the basic nodes;
+	//every time to layout , first ,delete the virtual node
+	for(let k in nodeIndex){
+		if(nodeIndex[k].name === '虚拟节点' ){
+			let parentNode = nodeIndex[nodeIndex[k].parent];
+			parentNode.children = parentNode.children.filter(n => n != k);
+			delete nodeIndex[k];
+		}
+	}
+	resetRatio();
+
 	
 	//the whole area is divide to 4 sector:1,2,3,4 , respectively are : sector right/left/top/bottom
 	//			|
@@ -33,9 +55,10 @@ function layout(rootId,nodeIndex){
 	//			|
 	//
 	//
+	
 	let edge = Math.ceil(root.children.length / 2);
-	let sector1 = root.children.slice(0,edge);
-	let sector2 = root.children.slice(edge);
+	sector1 = root.children.slice(0,edge);
+	sector2 = root.children.slice(edge);
 	//while(true){
 	//	//balance the tree, if a sector have too many , squeeze node to the next sector
 	//	let changed = false;
@@ -61,17 +84,27 @@ function layout(rootId,nodeIndex){
 
 	console.info('sector1:',sector1,'sector2',sector2);
 	//check the children occupy space 
-	
+	let count = 0;	
 	while(true){
-		layoutNode(sector1,1,nodeIndex);
-		if(checkSpaceOccupy(sector1,nodeIndex)){
-			break;
-		}
-	}
-	while(true){
-		layoutNode(sector2,2,nodeIndex);
-		if(checkSpaceOccupy(sector2,nodeIndex)){
-			break;
+		try{
+			layoutNode(sector1,1,nodeIndex);
+			layoutNode(sector2,2,nodeIndex);
+			if(checkSpaceOccupy(nodeIndex) && checkRatio(nodeIndex)){
+				break;
+			}
+			if(count++ > 100){
+				console.log('too many loop!');
+				break;
+			}
+		}catch(e){
+			if(e.message == ERROR.RATIO_IS_TOO_SMALL){
+				console.warn('ratio is too small ,inscreas ratio...',e);
+				increaseRatio();
+				continue;
+			}else{
+				console.error(e);
+				throw new Error(ERROR.LAYOUT_FAILURE);
+			}
 		}
 	}
 }
@@ -82,10 +115,19 @@ function layout(rootId,nodeIndex){
 function getXByY(y,orbit,ratio){
 	const a = CHILD_GAP + (orbit - 1)*CHILD_GAP;
 	const b = a*ratio;
-	return Math.sqrt( ( 1 - (y*y)/(b*b))*(a*a));
+	let x = Math.sqrt( ( 1 - (y*y)/(b*b))*(a*a));
+	if(isNaN(x)){
+		throw new Error('x is NaN');
+	}
+	return x;
 }
 
-
+function increaseRatio(){
+	rootRatio += 0.1;
+}
+function resetRatio(){
+	rootRatio = ORIGINAL_RATIO;
+}
 function calculateRatio(hiestNodeHeight){
 	//according y , cal x, if x < MIN_X then , adjest the ratio
 	const x = getXByY(hiestNodeHeight,1,rootRatio);
@@ -117,7 +159,11 @@ function getB( sign ){
 function layoutNode(nodes,sectorNumber,nodeIndex){
 	let wholeGap = (nodes.length - 1)*NODE_GAP;
 	let highestNodeHeight = Math.round(wholeGap/2);
-	calculateRatio(highestNodeHeight);
+	if(highestNodeHeight > CHILD_GAP*rootRatio){
+		//impossible
+		throw new Error(ERROR.RATIO_IS_TOO_SMALL);
+	}
+	//calculateRatio(highestNodeHeight);
 	for(let i = 0 ; i < nodes.length ; i++){
 		//calculate ever node
 		const node = nodeIndex[nodes[i]];
@@ -194,6 +240,10 @@ function layoutChildren(nodes,nodeIndex){
 	//calculate the every node gap 
 	const wholeGap = (nodes.length - 1)*NODE_GAP;
 	const highestNodeHeight = middlePointY - Math.round(wholeGap / 2);
+	if(Math.abs(highestNodeHeight) > a*rootRatio || Math.abs(highestNodeHeight+wholeGap) > a*rootRatio){
+		//impossible
+		throw new Error(ERROR.RATIO_IS_TOO_SMALL);
+	}
 	parentNode.childrenSpace = undefined;
 	for(let i = 0 ; i < nodes.length ; i++){
 		const node = nodeIndex[nodes[i]];
@@ -222,7 +272,7 @@ function layoutChildren(nodes,nodeIndex){
 }
 
 
-function checkSpaceOccupy(nodes,nodeIndex){
+function checkSpaceOccupyOld(nodes,nodeIndex){
 	for(let i = 0 ;i < nodes.length ; i++){
 		const node1 = nodeIndex[nodes[i]];
 		if(i+1 <= nodes.length){
@@ -248,9 +298,167 @@ function checkSpaceOccupy(nodes,nodeIndex){
 		}
 		//recurser
 		if(node1.children){
-			if(!checkSpaceOccupy(node1.children,nodeIndex)){
+			if(!checkSpaceOccupyOld(node1.children,nodeIndex)){
 				return false;
 			}
+		}
+	}
+	return true;
+}
+
+function checkSpaceOccupy(nodeIndex){
+	for(let key in nodeIndex){
+		const node = nodeIndex[key];
+		//get all the nodes : at the same orbit , at the same sector
+		const brothers = getBrothers(node,nodeIndex);
+		for(let key2 in brothers){
+			const bro = brothers[key2];
+			if(node.childrenSpace && bro.childrenSpace && 
+				((node.childrenSpace.lowest + 30 > bro.childrenSpace.highest && node.childrenSpace.highest - 30 < bro.childrenSpace.highest) 
+				||
+				(node.childrenSpace.lowest + 30 > bro.childrenSpace.lowest && node.childrenSpace.highest - 30 < bro.childrenSpace.lowest) 
+				)){
+				//overlap ,insert a virtual node ;
+				console.info(`the node:${node.id} overlap (down side) with node:${bro.id}`,node,bro);
+				const parentNode = nodeIndex[node.parent];
+				const newNode = 
+					{
+						id: getNextId(nodeIndex),
+						name:'虚拟节点',
+						color : '#94D2B3',
+						showChildren : false,
+						parent : parentNode.id,
+						level : parentNode.level + 1,
+					};
+				if(node.y > bro.y){
+					if(node.x > 0){
+						//insert uper itself
+						const i = parentNode.children.indexOf(node.id);
+						const nodes = parentNode.children;
+						parentNode.children = [...nodes.slice(0,i),newNode.id,...nodes.slice(i)];
+						nodeIndex[newNode.id] = newNode;
+						//if parent is root , update the sector array
+						if(parentNode.level == 1 ){
+							const j = sector1.indexOf(node.id);
+							sector1 = [...sector1.slice(0,j),newNode.id,...sector1.slice(j)];
+						}
+						return false;
+					}else{
+						//insert uper itself
+						const i = parentNode.children.indexOf(node.id);
+						const nodes = parentNode.children;
+						parentNode.children = [...nodes.slice(0,i+1),newNode.id,...nodes.slice(i+1)];
+						nodeIndex[newNode.id] = newNode;
+						//if parent is root , update the sector array
+						if(parentNode.level == 1 ){
+							const j = sector2.indexOf(node.id);
+							sector2 = [...sector2.slice(0,j+1),newNode.id,...sector2.slice(j+1)];
+						}
+						return false;
+					}
+				}else{
+					if(node.x > 0){
+						//insert uper itself
+						const i = parentNode.children.indexOf(node.id);
+						const nodes = parentNode.children;
+						parentNode.children = [...nodes.slice(0,i+1),newNode.id,...nodes.slice(i+1)];
+						nodeIndex[newNode.id] = newNode;
+						//if parent is root , update the sector array
+						if(parentNode.level == 1 ){
+							const j = sector1.indexOf(node.id);
+							sector1 = [...sector1.slice(0,j+1),newNode.id,...sector1.slice(j+1)];
+						}
+						return false;
+					}else{
+						//insert uper itself
+						const i = parentNode.children.indexOf(node.id);
+						const nodes = parentNode.children;
+						parentNode.children = [...nodes.slice(0,i),newNode.id,...nodes.slice(i)];
+						nodeIndex[newNode.id] = newNode;
+						//if parent is root , update the sector array
+						if(parentNode.level == 1 ){
+							const j = sector2.indexOf(node.id);
+							sector2 = [...sector2.slice(0,j),newNode.id,...sector2.slice(j)];
+						}
+						return false;
+					}
+				}
+			}
+		};
+	}
+	return true;
+}
+
+/*
+ * get the nodes : at the same orbit , and the same sector( x sign is the same)
+ * */
+function getBrothers(node,nodeIndex){
+	let brothers = [];
+	for(let key in nodeIndex){
+		if(key == node.id){
+			//pass the node itself
+			continue;
+		}
+		const currentNode = nodeIndex[key];
+		if(currentNode.level == 1){
+			//pass the root
+			continue;
+		}
+		if(currentNode.level == node.level && currentNode.x * node.x > 0){
+			brothers.push(currentNode);
+		}
+	}
+	return brothers;
+}
+
+/*
+ * check the ratio is OK, that means the childrens x is not too close to the parent(orbit)
+ * */
+function checkRatioOld(nodes,nodeIndex){
+	let orbit = 0;
+	let minX = 99999;
+	let parentNode = undefined;
+	for(let i = 0 ;i < nodes.length ; i++){
+		const node = nodeIndex[nodes[i]];
+		parentNode = nodeIndex[node.parent];
+		orbit = node.level -1;
+		if(Math.abs(node.x) < minX){
+			minX = Math.abs(node.x);
+		}
+		if(node.children){
+			if(!checkRatio(node.children,nodeIndex)){
+				return false;
+			}
+		}
+	}
+	const orbitMinX = getOrbitMinX(orbit);
+	if(minX < orbitMinX){
+		//too close,adjest the ratio
+		increaseRatio();
+		console.info(`too close to parent orbit,minX:${minX},orbitMinX:${orbitMinX},adjested ratio:${rootRatio}`);
+		return false;
+	}else{
+		return true;
+	}
+}
+/*
+ * check the ratio is OK, that means the childrens x is not too close to the parent(orbit)
+ * */
+function checkRatio(nodeIndex){
+	for(let key in nodeIndex){
+		const node = nodeIndex[key];
+		if(node.level == 1){
+			//pass the root
+			continue;
+		}
+		const orbit = node.level -1;
+		const orbitMinX = getOrbitMinX(orbit);
+		const parentNode = nodeIndex[node.parent];
+		if(Math.abs(node.x) < orbitMinX){
+			//too close,adjest the ratio
+			increaseRatio();
+			console.info(`too close to parent orbit,x:${node.x},orbitMinX:${orbitMinX},adjested ratio:${rootRatio}`);
+			return false;
 		}
 	}
 	return true;
