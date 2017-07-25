@@ -91,10 +91,10 @@ class Element extends Component {
 		}else{
 			startX = startX - startNodeWidth/2;
 		}
-		const widths = [95,95,20,15,8];
-		const widths2 = [30,20,10,5,3,3,3];
-		const startWidth = level > widths.length - 1? 8 : widths[level];
-		const endWidth = level > widths2.length -1 ? 2 : widths2[level];
+		const widths = [95,50,15,8,4];
+		const widths2 = [30,8,4,2,1,1,1];
+		const startWidth = level > widths.length - 1? 3 : widths[level];
+		const endWidth = level > widths2.length -1 ? 1 : widths2[level];
 		const distX = Math.abs(startX-endX);
 		const absY = Math.abs(startY - endY);
 		//let cx2 = (1-(absY/absX)*(absY/absX)) * (absX/2);
@@ -106,7 +106,7 @@ class Element extends Component {
 		const controlStartY = startY;
 		const controlEndX = endX > 0 ? (endX - 100) : (endX + 100);
 		const controlEndY = endY;
-		const d = `M ${startX} ${startY - startWidth/2} C ${controlStartX} ${controlStartY} ${controlEndX} ${controlEndY} ${endX} ${endY } C ${controlEndX} ${controlEndY} ${controlStartX} ${controlStartY} ${startX} ${startY + startWidth/2} z`;
+		const d = `M ${startX},${startY - startWidth/2} C ${controlStartX},${controlStartY - startWidth/2} ${controlEndX},${controlEndY - endWidth/2} ${endX},${endY - endWidth/2} v ${endWidth} C ${controlEndX} ${controlEndY + endWidth/2} ${controlStartX} ${controlStartY + startWidth/2} ${startX} ${startY + startWidth/2} z`;
 		console.info(`(${startX},${startY}) -> (${endX},${endY}) = d:${d}`);
 		return(
 			<g>
@@ -428,10 +428,15 @@ class App extends Component {
 			width='500'
 			height='500'
 			style={{
-				//'display' : 'none',
+				'display' : 'none',
 			}}
 		>
-			<path d='M 100,100 C 100,100 200,200 300,200 M 300,205 C 200,200 100,110 100,110 z' strokeWidth='1' stroke='pink' fill='pink' /> 
+			<path d='M 100,100 C 100,100 200,200 300,200 v 5 C 200,200 100,110 100,110 z' strokeWidth='1' stroke='pink' fill='pink' /> 
+			<circle cx='100' cy='100' r='2' fill='red' />
+			<circle cx='100' cy='100' r='2' fill='red' />
+			<circle cx='200' cy='200' r='2' fill='red' />
+			<circle cx='300' cy='200' r='2' fill='red' />
+			<circle cx='300' cy='200' r='2' fill='red' />
 		</svg>
 		<svg 
 			version="1.1" 
