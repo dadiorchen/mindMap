@@ -84,6 +84,44 @@ class Element extends Component {
 		)
 	}
 
+	drawingGradient = (startX :number,startY : number,endX :number,endY : number,level :number) =>{
+		const startNodeWidth = level == 2? 120 : 80;
+		if(endX > 0 ){
+			startX = startX + startNodeWidth/2;
+		}else{
+			startX = startX - startNodeWidth/2;
+		}
+		const widths = [95,95,20,15,8];
+		const widths2 = [30,20,10,5,3,3,3];
+		const startWidth = level > widths.length - 1? 8 : widths[level];
+		const endWidth = level > widths2.length -1 ? 2 : widths2[level];
+		const distX = Math.abs(startX-endX);
+		const absY = Math.abs(startY - endY);
+		//let cx2 = (1-(absY/absX)*(absY/absX)) * (absX/2);
+		//let cy2 = absY;
+		//let cx1 = (absX*absX + absY*absY)/(2*absX);
+		//let cy1 = 0;
+		
+		const controlStartX = endX >= 0 ? (startX + 50) : (startX - 50);
+		const controlStartY = startY;
+		const controlEndX = endX > 0 ? (endX - 100) : (endX + 100);
+		const controlEndY = endY;
+		const d = `M ${startX} ${startY - startWidth/2} C ${controlStartX} ${controlStartY} ${controlEndX} ${controlEndY} ${endX} ${endY } C ${controlEndX} ${controlEndY} ${controlStartX} ${controlStartY} ${startX} ${startY + startWidth/2} z`;
+		console.info(`(${startX},${startY}) -> (${endX},${endY}) = d:${d}`);
+		return(
+			<g>
+				<path ref={r => this.lineRef = r} strokeWidth={endWidth} fill="#e68782" d={d} stroke="#e68782"  
+					style={{
+						//'strokeDasharray' : 500,
+						//'strokeDashoffset' : 500,
+						'transition': 'all 0.5s linear',
+					}}
+				/>
+			</g>
+		)
+		
+	}
+
 	handleContextMenu = (e) => {
 		console.info('context menu click',e);
 		this.setState({
@@ -172,7 +210,7 @@ class Element extends Component {
 					</g>
 				}
 				{parentNode &&
-					this.drawing(parentNode.x,parentNode.y,x,y,parentNode.id == 0 ? 120:80,80)
+					this.drawingGradient(parentNode.x,parentNode.y,x,y,node.level)
 				}
 				{(node.showChildren ||  showLevel > node.level) && children && children.map(id => <ElementConnected key={id} nodeId={id} />) }
 				<g transform={`translate(${x} ${y})`} 
@@ -193,7 +231,7 @@ class Element extends Component {
 							<rect x={-w/2} y={-h/2} rx='5' ry='5' width={w} height={h} strokeWidth='0' fill={color} 
 								 />
 							<text dy="5" textAnchor="middle" fontSize={parentNode?"18":"28"} fill="white" >{name}</text>
-						</g>
+					</g>
 					}
 				</g>
 				{showContextMenu && 
@@ -386,6 +424,15 @@ class App extends Component {
 	{this.state.line}
 </svg>
 		*/}
+		<svg viewBox='0,0,500,500' 
+			width='500'
+			height='500'
+			style={{
+				//'display' : 'none',
+			}}
+		>
+			<path d='M 100,100 C 100,100 200,200 300,200 M 300,205 C 200,200 100,110 100,110 z' strokeWidth='1' stroke='pink' fill='pink' /> 
+		</svg>
 		<svg 
 			version="1.1" 
 			xmlns="http://www.w3.org/2000/svg" 
