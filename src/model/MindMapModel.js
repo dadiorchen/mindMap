@@ -1,6 +1,25 @@
+//@flow
 import {combineReducers} from 'redux'
 //import layout from './layout.js'
 import layout from './layoutEllipseBounce.js'
+
+
+//data type
+
+export type Node = {
+	id : number,
+	name : string,
+	children : Array<number>,
+	color : string,
+	showChildren : boolean,
+	level : number,
+	x : number,
+	y : number,
+	parent? : number,
+	sector? : number,
+	childrenSpace? : any,
+}
+export type NodeMap = { [number] : Node}; 
 
 //data for test
 const nodeList2 = [
@@ -116,13 +135,16 @@ const nodeList2 = [
 ]
 
 
-const nodeList = [
+const nodeList : Array<Node> = [
 {
 	id:0,
 	name:'logger',
 	children : [],
 	color : '#94D2B3',
 	showChildren : false,
+	level : 1,
+	x : 0,
+	y : 0,
 }]
 
 let indexData = {};
@@ -130,11 +152,11 @@ nodeList.forEach(node =>{
 	indexData[node.id] = node;
 });
 
-export function getNextId(indexData){
+export function getNextId(indexData : NodeMap){
 	let maxId = 0;
 	for(let key in indexData){
-		if(indexData[key].id > maxId){
-			maxId = indexData[key].id;
+		if(indexData[parseInt(key)].id > maxId){
+			maxId = indexData[parseInt(key)].id;
 		}
 	}
 	return maxId + 1;
@@ -180,17 +202,17 @@ export const load = () => ({
 	type:ACTION.LOAD,
 })
 
-export const addNode = (parentId) => ({
+export const addNode = (parentId : number) => ({
 	type : ACTION.ADD_NODE,
 	parentId,
 });
 
-export const deleteNode = (id) => ({
+export const deleteNode = (id : number) => ({
 	type : ACTION.DELETE_NODE,
 	id,
 });
 
-export const toggleChildren = (id) => ({
+export const toggleChildren = (id : number) => ({
 	type : ACTION.TOGGLE_CHILDREN,
 	id,
 });
@@ -280,10 +302,10 @@ const showLevel = (state = 1, action) => {
 }
 //get setter -----------------------------------------
 
-export const getNodeById = (state,id) => {
+export const getNodeById = (state :any,id :number) => {
 	return state.mindMap.index[id];
 }
-export const getParentNodeById = (state,id) => {
+export const getParentNodeById = (state : any,id : number) => {
 	const node = getNodeById(state,id);
 	if(!node){
 		return null;
@@ -296,7 +318,7 @@ export const getParentNodeById = (state,id) => {
 	}
 }
 
-export const getRoot = (state) => {
+export const getRoot = (state : any) => {
 	return state.mindMap.index[0];
 }
 

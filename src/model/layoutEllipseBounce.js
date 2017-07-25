@@ -1,5 +1,6 @@
+//@flow
 import {polar2cartesian} from './coordination.js'
-import {getNextId} from './MindMapModel.js'
+import {type Node,type NodeMap,getNextId} from './MindMapModel.js'
 //const---------------------------------------------------
 const NODE_GAP = 50;// unit:degree
 export const CHILD_GAP = 200;// unit : px
@@ -23,7 +24,7 @@ function getOrbitMinX(orbit){
 //layout the whole tree , start from root 
 var sector1;
 var sector2;
-function layout(rootId,nodeIndex){
+function layout(rootId : number ,nodeIndex :NodeMap){
 	const root = nodeIndex[rootId];
 	root.x = 0;
 	root.y = 0;
@@ -32,10 +33,10 @@ function layout(rootId,nodeIndex){
 	//every time to layout , reset the basic nodes;
 	//every time to layout , first ,delete the virtual node
 	for(let k in nodeIndex){
-		if(nodeIndex[k].name === '虚拟节点' ){
-			let parentNode = nodeIndex[nodeIndex[k].parent];
-			parentNode.children = parentNode.children.filter(n => n != k);
-			delete nodeIndex[k];
+		if(nodeIndex[parseInt(k)].name === '虚拟节点' ){
+			let parentNode = nodeIndex[parseInt(nodeIndex[parseInt(k)].parent)];
+			parentNode.children = parentNode.children?parentNode.children.filter(n => n != parseInt(k))  : [];
+			delete nodeIndex[parseInt(k)];
 		}
 	}
 	resetRatio();
@@ -55,10 +56,10 @@ function layout(rootId,nodeIndex){
 	//			|
 	//
 	//
-	
-	let edge = Math.ceil(root.children.length / 2);
-	sector1 = root.children.slice(0,edge);
-	sector2 = root.children.slice(edge);
+	let children = root.children ? root.children : [];
+	let edge = Math.ceil(children.length / 2 );
+	sector1 = children.slice(0,edge);
+	sector2 = children.slice(edge);
 	//while(true){
 	//	//balance the tree, if a sector have too many , squeeze node to the next sector
 	//	let changed = false;
@@ -145,7 +146,7 @@ function getRootRatio(){
 	return rootRatio;
 }
 //the middle line original point is the start point of the middle line
-function getB( sign ){
+function getB( sign : number){
 	if(rootRatio <= 1){
 		//the nodes is not so many , no need to adjest the point
 		return 0;
@@ -185,7 +186,7 @@ function layoutNode(nodes,sectorNumber,nodeIndex){
 				break;
 			};
 		}
-		console.info(`the node ${node.id} in sector${sectorNumber},x:${x},y:${y},converted x:${node.x},y:${node.y}`);
+		console.info(`the node ${node.id} in sector${sectorNumber},x:${x},y:${y},converted x:${+node.x},y:${+node.y}`);
 		//calculate children
 		if(node.children && node.children.length > 0){
 			layoutChildren(node.children,nodeIndex);
@@ -201,7 +202,7 @@ function layoutNode(nodes,sectorNumber,nodeIndex){
  * x2 =  (2*B*(y1**2) +/- Math.sqrt( 4*(B**2)*(y1**4) - 4*( ((x1 + B)**2)*(R**2) + y1**2 )*(y1**2 * B**2 - a**2 * R**2 * ( x1 + B)**2 ) ) ) / 2 * ( (x1 + B)**2 * R**2 + y1**2 ) 
  * y2 = (y1*x2 - y1*B) / (x1+B)	
  * */
-function getMiddlePoint(a,ratio,B,parentX,parentY){
+function getMiddlePoint(a : number,ratio :number,B :number,parentX : number,parentY : number){
 	const x1 = parentX;
 	const y1 = parentY;
 	const R = ratio;
@@ -225,17 +226,19 @@ function getMiddlePoint(a,ratio,B,parentX,parentY){
 }
 
 function layoutChildren(nodes,nodeIndex){
-	const parentNode = nodeIndex[nodeIndex[nodes[0]].parent];
+	const parentNode = nodeIndex[parseInt(nodeIndex[nodes[0]].parent)];
+	const parentNodeX = parseFloat(parentNode.x);
+	const parentNodeY = parseFloat(parentNode.y);
 	const orbit = parentNode.level; 
 	//calculate the middle point of child nodes. its in a strait line with parent point and root point (3 point in a line )
 	const a = CHILD_GAP + (orbit - 1)*CHILD_GAP;
 	//const middlePointY = a / Math.sqrt( rootRatio * rootRatio + ((parentNode.x*parentNode.x)/(parentNode.y*parentNode.y))) ;
 	//const middlePointX = getXByY(middlePointY,2,rootRatio);//TODO temp 2 level
-	const B = getB( parentNode.x >= 0 ? -1 : 1); 
+	const B = getB( parentNodeX >= 0 ? -1 : 1); 
 	
-	const result = getMiddlePoint(a,rootRatio,B,parentNode.x,parentNode.y);
-	const middlePointX = parentNode.x >= 0 ? result.positive.x : result.negtive.x;
-	const middlePointY = parentNode.x >= 0 ? result.positive.y : result.negtive.y;
+	const result = getMiddlePoint(a,rootRatio,B,parentNodeX,parentNodeY);
+	const middlePointX = parentNodeX >= 0 ? result.positive.x : result.negtive.x;
+	const middlePointY = parentNodeX >= 0 ? result.positive.y : result.negtive.y;
 
 	//calculate the every node gap 
 	const wholeGap = (nodes.length - 1)*NODE_GAP;
@@ -248,8 +251,8 @@ function layoutChildren(nodes,nodeIndex){
 	for(let i = 0 ; i < nodes.length ; i++){
 		const node = nodeIndex[nodes[i]];
 		node.y = highestNodeHeight + i*NODE_GAP;
-		node.x = (parentNode.x >= 0 ? 1 : -1) * getXByY(node.y,orbit,rootRatio);
-		console.info(`the node ${node.id}(child ${i} of parent) ,x:${node.x},y:${node.y},and the highestNodeHeight:${highestNodeHeight},the middle point (x,y):(${middlePointX},${middlePointY})`);
+		node.x = (parentNodeX >= 0 ? 1 : -1) * getXByY(node.y,orbit,rootRatio);
+		console.info(`the node ${node.id}(child ${i} of parent) ,x:${+node.x},y:${+node.y},and the highestNodeHeight:${highestNodeHeight},the middle point (x,y):(${middlePointX},${middlePointY})`);
 		//update the children y occupy space (the node's children highest and lowest range
 		if(parentNode.childrenSpace	== undefined ){
 			parentNode.childrenSpace = {
@@ -308,11 +311,11 @@ function checkSpaceOccupyOld(nodes,nodeIndex){
 
 function checkSpaceOccupy(nodeIndex){
 	for(let key in nodeIndex){
-		const node = nodeIndex[key];
+		const node = nodeIndex[parseInt(key)];
 		//get all the nodes : at the same orbit , at the same sector
 		const brothers = getBrothers(node,nodeIndex);
-		for(let key2 in brothers){
-			const bro = brothers[key2];
+		for(let i = 0 ; i < brothers.length ; i++){
+			const bro = brothers[i];
 			if(node.childrenSpace && bro.childrenSpace && 
 				((node.childrenSpace.lowest + 30 > bro.childrenSpace.highest && node.childrenSpace.highest - 30 < bro.childrenSpace.highest) 
 				||
@@ -320,7 +323,7 @@ function checkSpaceOccupy(nodeIndex){
 				)){
 				//overlap ,insert a virtual node ;
 				console.info(`the node:${node.id} overlap (down side) with node:${bro.id}`,node,bro);
-				const parentNode = nodeIndex[node.parent];
+				const parentNode = nodeIndex[parseInt(node.parent)];
 				const newNode = 
 					{
 						id: getNextId(nodeIndex),
@@ -329,9 +332,12 @@ function checkSpaceOccupy(nodeIndex){
 						showChildren : false,
 						parent : parentNode.id,
 						level : parentNode.level + 1,
+						children : [],
+						x : 0,
+						y : 0,
 					};
-				if(node.y > bro.y){
-					if(node.x > 0){
+				if(parseFloat(node.y) > parseFloat(bro.y)){
+					if(parseInt(node.x) > 0){
 						//insert uper itself
 						const i = parentNode.children.indexOf(node.id);
 						const nodes = parentNode.children;
@@ -392,14 +398,14 @@ function checkSpaceOccupy(nodeIndex){
 /*
  * get the nodes : at the same orbit , and the same sector( x sign is the same)
  * */
-function getBrothers(node,nodeIndex){
+function getBrothers(node,nodeIndex) : Array<Node>{
 	let brothers = [];
 	for(let key in nodeIndex){
-		if(key == node.id){
+		if(parseInt(key )== node.id){
 			//pass the node itself
 			continue;
 		}
-		const currentNode = nodeIndex[key];
+		const currentNode = nodeIndex[parseInt(key)];
 		if(currentNode.level == 1){
 			//pass the root
 			continue;
@@ -426,7 +432,7 @@ function checkRatioOld(nodes,nodeIndex){
 			minX = Math.abs(node.x);
 		}
 		if(node.children){
-			if(!checkRatio(node.children,nodeIndex)){
+			if(!checkRatio(node.children)){
 				return false;
 			}
 		}
@@ -446,14 +452,14 @@ function checkRatioOld(nodes,nodeIndex){
  * */
 function checkRatio(nodeIndex){
 	for(let key in nodeIndex){
-		const node = nodeIndex[key];
+		const node = nodeIndex[parseInt(key)];
 		if(node.level == 1){
 			//pass the root
 			continue;
 		}
 		const orbit = node.level -1;
 		const orbitMinX = getOrbitMinX(orbit);
-		const parentNode = nodeIndex[node.parent];
+		const parentNode = nodeIndex[parseInt(node.parent)];
 		if(Math.abs(node.x) < orbitMinX){
 			//too close,adjest the ratio
 			increaseRatio();

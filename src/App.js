@@ -1,3 +1,4 @@
+/** @flow */
 import React, { Component } from 'react';
 import logo from './logo.svg';
 import './App.css';
@@ -14,12 +15,14 @@ console.log('loaded d3 :',d3);
 var referenceLine = false;
 
 class Element extends Component {
-	constructor(props){
-		super(props);
-		this.state = {
-			showContextMenu : false,
-		}
+	//-------------------init------------------
+	state = {
+		showContextMenu : false,
+		contextMenuX : 0,
+		contextMenuY : 0,
 	}
+	lineRef : any;
+	nodeRef : any;
 
 	componentWillReceiveProps(nextProps){
 		console.info('the current props:',this.props,'next props:',nextProps);
@@ -42,15 +45,17 @@ class Element extends Component {
 		}
 	}
 
+
+
 	drawing = (startX,startY,endX,endY,startNodeWidth,endNodeWidth) =>{
 		//calcutate the point (consider the node have width,and the x,y greater or lesser then 0) 
-		if(endX > 0 ){
-			startX = startX + startNodeWidth/2;
-			endX = endX - endNodeWidth / 2;
-		}else{
-			startX = startX - startNodeWidth/2;
-			endX = endX + endNodeWidth / 2;
-		}
+		//if(endX > 0 ){
+		//	startX = startX + startNodeWidth/2;
+		//	endX = endX - endNodeWidth / 2;
+		//}else{
+		//	startX = startX - startNodeWidth/2;
+		//	endX = endX + endNodeWidth / 2;
+		//}
 
 		
 		const distX = Math.abs(startX-endX);
@@ -169,6 +174,7 @@ class Element extends Component {
 				{parentNode &&
 					this.drawing(parentNode.x,parentNode.y,x,y,parentNode.id == 0 ? 120:80,80)
 				}
+				{(node.showChildren ||  showLevel > node.level) && children && children.map(id => <ElementConnected key={id} nodeId={id} />) }
 				<g transform={`translate(${x} ${y})`} 
 					ref={r => this.nodeRef = r}
 					onContextMenu={this.handleContextMenu}
@@ -190,7 +196,6 @@ class Element extends Component {
 						</g>
 					}
 				</g>
-				{(node.showChildren ||  showLevel > node.level) && children && children.map(id => <ElementConnected key={id} nodeId={id} />) }
 				{showContextMenu && 
 					<ContextMenu 
 						contextMenuX={contextMenuX} 
@@ -275,24 +280,24 @@ class ContextMenuItem extends Component {
 
 
 class App extends Component {
-	//const------------------------------------
+	//init------------------------------------
+	//CONST
 	width = 1440;
 	height = 700;
 	viewBoxMinX = -720;
 	viewBoxMinY = -350;
-	
-	constructor(props){
-		super(props);
-		this.state = {
-			width : this.width,
-			height : this.height,
-			viewBoxMinX : this.viewBoxMinX,
-			viewBoxMinY : this.viewBoxMinY,
-			viewBoxWidth : this.width,
-			viewBoxHeight : this.height,
-		}
-	}
 
+	state = {
+		width : this.width,
+		height : this.height,
+		viewBoxMinX : this.viewBoxMinX,
+		viewBoxMinY : this.viewBoxMinY,
+		viewBoxWidth : this.width,
+		viewBoxHeight : this.height,
+	}
+	backgroundRectRef : any;
+
+	//react-----------------------------------------------------------
 	componentWillMount(){
 		this.props.dispatch(MindMapModel.load());
 	}
